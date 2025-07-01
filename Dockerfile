@@ -12,5 +12,4 @@ COPY app.py .
 # Expose the port Flask will run on
 EXPOSE 80
 
-# Run the app
 CMD ["python", "app.py"]
