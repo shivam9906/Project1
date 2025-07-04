@@ -3,7 +3,7 @@ name: Deploy Flask app to ECS
 on:
   push:
     branches:
-      - main  # Or your branch name where code changes trigger deploy
+      - main  # Change this to your deployment branch if needed
 
 jobs:
   deploy:
@@ -18,11 +18,16 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1  # Your AWS region
+          aws-region: us-east-1  # Change to your AWS region
 
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Create ECR repository if not exists
+        run: |
+          aws ecr describe-repositories --repository-names newflask || \
+          aws ecr create-repository --repository-name newflask
 
       - name: Build, tag, and push Docker image
         env:
@@ -36,13 +41,13 @@ jobs:
       - name: Create new ECS task definition revision
         id: task-def
         run: |
-          # Create new task definition JSON replacing image URL with new tag
+          # Replace image URL in task definition template with new image URI
           TASK_DEF=$(jq --arg IMG "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" '.containerDefinitions[0].image = $IMG' task-def-template.json)
           echo "$TASK_DEF" > task-def.json
           aws ecs register-task-definition --cli-input-json file://task-def.json > result.json
           TASK_DEF_ARN=$(jq -r '.taskDefinition.taskDefinitionArn' result.json)
-          echo "::set-output name=arn::$TASK_DEF_ARN"
+          echo "task_def_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
 
-      - name: Update ECS service
+      - name: Update ECS service to use new task definition
         run: |
-          aws ecs update-service --cluster my-cluster --service my-service --task-definition ${{ steps.task-def.outputs.arn }}
+          aws ecs update-service --cluster my-cluster --service my-service --task-definition ${{ steps.task-def.outputs.task_def_arn }}
