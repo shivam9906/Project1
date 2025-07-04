@@ -4,7 +4,7 @@ app = Flask(__name__)
 
 @app.route("/")
 def home():
-    return "Hello from ECS! 🚀"
+    return "Hello from ECS and pending! 🚀"
 
 def hom2():
     return "Bye task done completed"
