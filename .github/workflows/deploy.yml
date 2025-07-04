@@ -1,37 +1,48 @@
-name: Deploy to ECS
+name: Deploy Flask app to ECS
 
 on:
   push:
     branches:
-      - main
+      - main  # Or your branch name where code changes trigger deploy
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1  # Your AWS region
 
-    - name: Login to Amazon ECR
-      uses: aws-actions/amazon-ecr-login@v2
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
 
-    - name: Build and push image to ECR
-      run: |
-        IMAGE_URI=${{ secrets.ECR_REPOSITORY }}:latest
-        docker build -t $IMAGE_URI .
-        docker push $IMAGE_URI
+      - name: Build, tag, and push Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: my-flask-app
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-    - name: Force ECS Service Update
-      run: |
-        aws ecs update-service \
-          --cluster ${{ secrets.ECS_CLUSTER_NAME }} \
-          --service ${{ secrets.ECS_SERVICE_NAME }} \
-          --force-new-deployment
+      - name: Create new ECS task definition revision
+        id: task-def
+        run: |
+          # Create new task definition JSON replacing image URL with new tag
+          TASK_DEF=$(jq --arg IMG "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" '.containerDefinitions[0].image = $IMG' task-def-template.json)
+          echo "$TASK_DEF" > task-def.json
+          aws ecs register-task-definition --cli-input-json file://task-def.json > result.json
+          TASK_DEF_ARN=$(jq -r '.taskDefinition.taskDefinitionArn' result.json)
+          echo "::set-output name=arn::$TASK_DEF_ARN"
+
+      - name: Update ECS service
+        run: |
+          aws ecs update-service --cluster my-cluster --service my-service --task-definition ${{ steps.task-def.outputs.arn }}
