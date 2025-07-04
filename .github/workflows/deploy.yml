@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - newflask   # ← Replace with your branch, e.g. develop
-  workflow_dispatch:        # Enables manual trigger from GitHub UI
 
 jobs:
   deploy:
