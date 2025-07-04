@@ -35,8 +35,8 @@ jobs:
 
     - name: Update ECS service with new image
       env:
-        CLUSTER_NAME: ${{ secrets.ECS_CLUSTER }}
-        SERVICE_NAME: ${{ secrets.ECS_SERVICE }}
+        CLUSTER_NAME: ${{ secrets.ECS_CLUSTER_NAME }}
+        SERVICE_NAME: ${{ secrets.ECS_SERVICE_NAME }}
         TASK_FAMILY: ${{ secrets.ECS_TASK_DEFINITION }}
         IMAGE_URI: ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY }}:${{ github.sha }}
       run: |
