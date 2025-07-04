@@ -3,7 +3,7 @@ name: Deploy to ECS
 on:
   push:
     branches:
-      - newflask   # ← Replace with your branch, e.g. develop
+      - main
 
 jobs:
   deploy:
@@ -23,13 +23,13 @@ jobs:
     - name: Login to Amazon ECR
       uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Build and push Docker image
+    - name: Build and push image to ECR
       run: |
         IMAGE_URI=${{ secrets.ECR_REPOSITORY }}:latest
         docker build -t $IMAGE_URI .
         docker push $IMAGE_URI
 
-    - name: Update ECS Service
+    - name: Force ECS Service Update
       run: |
         aws ecs update-service \
           --cluster ${{ secrets.ECS_CLUSTER_NAME }} \
