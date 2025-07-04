@@ -3,7 +3,7 @@ name: Deploy to ECS
 on:
   push:
     branches:
-      - your-branch-name    # ← Replace with your branch, e.g. develop
+      - newflask   # ← Replace with your branch, e.g. develop
   workflow_dispatch:        # Enables manual trigger from GitHub UI
 
 jobs:
